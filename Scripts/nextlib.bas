@@ -1,8 +1,10 @@
 ' vim:ts=4:et:
+' vim:ts=4:et:
 ' ---------------------------------------------------------
 ' NextLib v8.00 - David Saphier / em00k 2024
 ' Help and thanks Boriel, Flash, Baggers, Britlion, Shiru, Mike Dailly 
 ' Matt Davies for help on the fastPLotL2 
+' Slightly modified by greenwebsevilla and Bitfans 2025
 ' ---------------------------------------------------------
 
 #ifndef __NEXTLIB__
@@ -1444,7 +1446,8 @@ Sub LoadSDBank(byval filen as String,ByVal address as uinteger,ByVal length as u
         LOCAL loadsdout, filesize, printrst, failed, slot6
         LOCAL fixstring, offset
 
-        call _check_interrupts
+        ;call _check_interrupts
+        call _checkints
         di
         
         ld d,(IX+5) : ld e,(IX+4) : ex de,hl        ; this gets the string sent
@@ -1523,7 +1526,11 @@ address:
         ld ix,0000      
 loadsize:       
         ld bc,0000              ; length to load from BC in stack 
+;********************Activamos las interrupciones antes den entrar en el bucle de carga
+		ReenableInts		
 loadagain:
+;********************Espera para que la musica AY no se corte
+		halt
         
         ld a,(filehandle)           ; read to address 
         ESXDOS : db $9d
@@ -1585,7 +1592,8 @@ endofloadsdbank:
         ;ld sp,0000
         pop hl                  ; restore hl 
         pop ix                  ; restore ix 
-        ReenableInts
+;*********** El ReenableInts estaba en el original puesto que durante toda la carga (en el original) estabamos con DI
+		;ReenableInts
         ENDP
     end asm 
 end sub 
@@ -3215,6 +3223,21 @@ Sub fastcall ISR()
 		MyCustomISR()
 		
 	#endif 
+#ifdef FIX_MUSIC_60HZ
+	asm 
+		ld a, [_VarFrec]
+		cp 50
+		jr z, Playdo
+		ld a, [_contador_frecuencia60]
+		dec a 
+		ld [_contador_frecuencia60],A
+		jr nz, Playdo
+		ld a,6
+		ld [_contador_frecuencia60],A
+		jr skipmusicplayer
+		Playdo:
+	end asm
+#endif
 	#ifndef NOAYFX 
 		asm 
 			ld a,(sfxenablednl)					;' are the fx enabled?
